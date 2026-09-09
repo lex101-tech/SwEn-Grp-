@@ -4,6 +4,6 @@
   we will be using this repo to do the COMP140 project. Please ensure you have done the necessary
   reserch on git especially git branch and merge as well as merge conflicts.
 
-# Note Well
+## Note Well
  
   This information in this readme will be changed in the near future.
