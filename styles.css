@@ -1,0 +1,227 @@
+/* ===== Basic setup ===== */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.5;
+    color: #222;
+    background-color: #f4f6fa;
+}
+
+.container {
+    width: 90%;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* ===== Header and navigation ===== */
+header {
+    /* TODO 1: Choose a background colour for the header (e.g. a dark blue like #14305c). */
+    background-color: __________;
+    color: white;
+    padding: 15px 0;
+}
+
+header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 20px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+nav a:hover {
+    color: #f2a900;
+}
+
+/* ===== Hero ===== */
+.hero {
+    background-color: #e3ebf7;
+    padding: 30px 0;
+    text-align: center;
+}
+
+.hero h2 {
+    margin-top: 0;
+}
+
+/* ===== Page sections ===== */
+.page-section {
+    padding: 20px 0;
+}
+
+h2 {
+    color: #14305c;
+    border-bottom: 2px solid #f2a900;
+    padding-bottom: 5px;
+    margin-top: 30px;
+}
+
+/* ===== Forms ===== */
+form {
+    background-color: white;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="datetime-local"],
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.form-row input,
+.form-row select {
+    flex: 1;
+    min-width: 150px;
+    margin-top: 0;
+}
+
+/* ===== Buttons ===== */
+.btn {
+    background-color: #14305c;
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    margin-top: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.form-row .btn {
+    margin-top: 0;
+}
+
+/* TODO 2: Choose a hover colour for buttons (e.g. #f2a900). */
+.btn:hover {
+    background-color: __________;
+    color: #222;
+}
+
+.btn-reject {
+    background-color: #a82020;
+}
+
+/* ===== Tables ===== */
+.results {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+}
+
+th,
+td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+th {
+    background-color: #14305c;
+    color: white;
+}
+
+/* ===== Cards ===== */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.card {
+    background-color: white;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #f2a900;
+    margin-bottom: 10px;
+}
+
+.card h3 {
+    margin-top: 0;
+    color: #14305c;
+}
+
+.small {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+/* ===== Messages ===== */
+.message {
+    margin: 8px 0;
+    font-weight: bold;
+    color: #14305c;
+}
+
+/* ===== Footer ===== */
+footer {
+    background-color: #14305c;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    margin-top: 40px;
+}
+
+/* ===== Mobile screens ===== */
+/* TODO 3: Enter a screen width in pixels for the mobile layout (e.g. 700). */
+@media (max-width: __________px) {
+    header .container {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    nav ul {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+    }
+
+    .cards {
+        grid-template-columns: 1fr;
+    }
+}
