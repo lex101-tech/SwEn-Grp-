@@ -58,7 +58,8 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
-    // TODO 3: Run searchClubs when the Search button is clicked.
+    //@Azi also do here 
+    //TODO 3: Run searchClubs when the Search button is clicked.
     // Replace the blank with the event name.
     // this might not be correct
     searchButton.addEventListener("clubResults", searchClubs);
