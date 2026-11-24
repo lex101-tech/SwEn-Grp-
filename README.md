@@ -7,3 +7,4 @@
 ## Note Well
  
   The information in this README will be changed in the near future.
+  We'll trying to meet everyday until submission. 
