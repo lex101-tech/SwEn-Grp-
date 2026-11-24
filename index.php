@@ -57,6 +57,37 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
     exit;
 }
 
+// Post an announcement (Club Representative)
+if (isset($_GET['action']) && $_GET['action'] === 'post_announcement') {
+    $current_user_id = 2; // TEMP: sample rep. Replace with $_SESSION when login exists.
+
+    $club_id = $_POST['club_id'] ?? '';
+    $title   = trim($_POST['title'] ?? '');
+    $message = trim($_POST['message'] ?? '');
+
+    if ($club_id === '' || $title === '' || $message === '') {
+        echo "Please fill in all fields."; exit;
+    }
+    if (mb_strlen($title) > 80 || mb_strlen($message) > 1000) {
+        echo "Title must be 80 characters or fewer and message 1000 or fewer."; exit;
+    }
+
+    // Must be the leader of this club AND the club must be Approved
+    $stmt = $conn->prepare("SELECT club_id FROM clubs
+                            WHERE club_id = :club_id AND leader_id = :user_id
+                            AND status = 'Approved'");
+    $stmt->execute(['club_id' => $club_id, 'user_id' => $current_user_id]);
+    if (!$stmt->fetch()) {
+        echo "You can only post announcements for your own approved clubs."; exit;
+    }
+
+    $stmt = $conn->prepare("INSERT INTO announcements (club_id, title, message)
+                            VALUES (:club_id, :title, :message)");
+    $stmt->execute(['club_id' => $club_id, 'title' => $title, 'message' => $message]);
+    echo "Announcement posted.";
+    exit;
+}
+
 /* ---------------------------------------------------------------
    PART B: Data for the rest of the page
    Study how the JOIN works.
@@ -83,6 +114,29 @@ $sql = "SELECT club_id, name, category, registration_date
 
 $stmt = $conn->query($sql);
 $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Announcements from approved clubs
+$current_rep_id = 2;      // TEMP
+$current_student_id = 3;  // TEMP
+
+// Clubs this rep can post for (dropdown)
+$stmt = $conn->prepare("SELECT club_id, name FROM clubs
+                        WHERE leader_id = :uid AND status = 'Approved'");
+$stmt->execute(['uid' => $current_rep_id]);
+$rep_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Announcements a student may see: only clubs where they're an accepted member
+$stmt = $conn->prepare("SELECT announcements.title, announcements.message,
+                               announcements.posted_at, clubs.name AS club_name
+                        FROM announcements
+                        JOIN clubs ON announcements.club_id = clubs.club_id
+                        JOIN memberships ON memberships.club_id = clubs.club_id
+                        WHERE memberships.student_id = :uid
+                        AND memberships.status = 'Accepted'
+                        AND clubs.status = 'Approved'
+                        ORDER BY announcements.posted_at DESC");
+$stmt->execute(['uid' => $current_student_id]);
+$announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
