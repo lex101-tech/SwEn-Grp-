@@ -20,7 +20,7 @@ body {
 /* ===== Header and navigation ===== */
 header {
     /* TODO 1: Choose a background colour for the header (e.g. a dark blue like #14305c). */
-    background-color: __________;
+    background-color: #14305c;
     color: white;
     padding: 15px 0;
 }
@@ -135,7 +135,7 @@ textarea {
 
 /* TODO 2: Choose a hover colour for buttons (e.g. #f2a900). */
 .btn:hover {
-    background-color: __________;
+    background-color: #f2a900;
     color: #222;
 }
 

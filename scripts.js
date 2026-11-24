@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // TODO 1: Show the chosen section. Replace the blank with "block".
-        document.getElementById(sectionId).style.display = "__________";
+        document.getElementById(sectionId).style.display = "block";
     }
 
     for (let i = 0; i < navLinks.length; i++) {
