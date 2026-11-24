@@ -124,10 +124,11 @@ INSERT INTO announcements (club_id, title, message) VALUES
 --         Fill in the column name, remove the "-- " and run it to add an index.
 -- CREATE INDEX idx_clubs_status ON clubs(__________);
 
--- Saved statements to use for the search function
+-- @Azi Saved statements to use for the search function
 -- CREATE INDEX idx_clubs_status ON clubs(status);
 -- SELECT name FROM clubs WHERE status = 'Approved';
 
--- TODO 2: Write a SELECT that lists the names of all clubs with status 'Approved'.
+--@Azi also do here 
+--TODO 2: Write a SELECT that lists the names of all clubs with status 'Approved'.
 --         Use it to check that the sample data imported correctly.
 -- SELECT __________ FROM clubs WHERE status = '__________';
