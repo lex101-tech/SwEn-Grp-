@@ -17,6 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let pendingTable = document.getElementById("pending-clubs");
 
+    let announcementForm = document.getElementById("announcement-form");
+    let announcementMessage = document.getElementById("announcement-message");
+
     // ===== Navigation: show one section at a time =====
     function showSection(sectionId) {
         for (let i = 0; i < sections.length; i++) {
@@ -175,4 +178,27 @@ document.addEventListener("DOMContentLoaded", function () {
                 location.__________();
             });
     }
+
+    // ===== Club representative: post an announcement =====
+    if (announcementForm) {
+        announcementForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            let formData = new FormData(announcementForm);
+
+            fetch("index.php?action=post_announcement", {
+                method: "POST",
+                body: formData
+            })
+                .then(function (response) {
+                    return response.text();
+                })
+                .then(function (data) {
+                announcementMessage.textContent = data;
+                if (data === "Announcement posted.") {
+                    announcementForm.reset();
+                }
+            });
+        });
+    }
+        
 });
