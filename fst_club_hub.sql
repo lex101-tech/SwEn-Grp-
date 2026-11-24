@@ -128,7 +128,7 @@ INSERT INTO announcements (club_id, title, message) VALUES
 -- CREATE INDEX idx_clubs_status ON clubs(status);
 -- SELECT name FROM clubs WHERE status = 'Approved';
 
---@Azi also do here 
---TODO 2: Write a SELECT that lists the names of all clubs with status 'Approved'.
+-- @Azi also do here 
+-- TODO 2: Write a SELECT that lists the names of all clubs with status 'Approved'.
 --         Use it to check that the sample data imported correctly.
 -- SELECT __________ FROM clubs WHERE status = '__________';
