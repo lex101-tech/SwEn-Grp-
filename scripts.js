@@ -49,13 +49,19 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(function (data) {
                 // TODO 2: Put the text returned by PHP inside the clubResults element.
                 // Replace the blank with the property used in world.js (Lab 5).
+                //127.0.0.1/fst_club_hub/clubs/		http://localhost/phpmyadmin/index.php?route=/sql&db=fst_club_hub&table=clubs&pos=0
+                //@Azi come back to this
+
+   
                 clubResults.__________ = data;
+                //clubResults. = data;
             });
     }
 
     // TODO 3: Run searchClubs when the Search button is clicked.
     // Replace the blank with the event name.
-    searchButton.addEventListener("__________", searchClubs);
+    // this might not be correct
+    searchButton.addEventListener("clubResults", searchClubs);
 
     // Show all approved clubs when the page opens.
     searchClubs();
