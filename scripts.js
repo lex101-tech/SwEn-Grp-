@@ -196,6 +196,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 announcementMessage.textContent = data;
                 if (data === "Announcement posted.") {
                     announcementForm.reset();
+                    location.reload();
                 }
             });
         });

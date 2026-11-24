@@ -115,7 +115,7 @@ $sql = "SELECT club_id, name, category, registration_date
 $stmt = $conn->query($sql);
 $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Announcements from approved clubs
+// Temporary user IDs for testing. Replace with $_SESSION when login exists.
 $current_rep_id = 2;      // TEMP
 $current_student_id = 3;  // TEMP
 
@@ -124,6 +124,16 @@ $stmt = $conn->prepare("SELECT club_id, name FROM clubs
                         WHERE leader_id = :uid AND status = 'Approved'");
 $stmt->execute(['uid' => $current_rep_id]);
 $rep_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Announcements posted by this rep's clubs (newest first)
+$stmt = $conn->prepare("SELECT announcements.title, announcements.message,
+                               announcements.posted_at, clubs.name AS club_name
+                        FROM announcements
+                        JOIN clubs ON announcements.club_id = clubs.club_id
+                        WHERE clubs.leader_id = :uid
+                        ORDER BY announcements.posted_at DESC");
+$stmt->execute(['uid' => $current_rep_id]);
+$rep_announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Announcements a student may see: only clubs where they're an accepted member
 $stmt = $conn->prepare("SELECT announcements.title, announcements.message,
@@ -218,11 +228,11 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <div class="card">
                             <h3><?= htmlspecialchars($a['title']); ?></h3>
                             <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
-                            <p><?= htmlspecialchars($a['message']); ?></p>
+                            <p><?= nl2br(htmlspecialchars($a['message'])); ?></p>
                         </div>
                     <?php endforeach; ?>
                 </div>
-                
+
             </section>
 
             <!-- ========== CLUB REPRESENTATIVE INTERFACE (ClubUI) ========== -->
@@ -271,11 +281,28 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="card"><h3>Club Profile</h3><p>Coming soon</p></div>
                     <div class="card"><h3>Membership Requests</h3><p>Coming soon</p></div>
                     <div class="card"><h3>Events</h3><p>Coming soon</p></div>
-                    <div class="card"><h3>Announcements</h3><p>Coming soon</p></div>
                 </div>
                 
+                <h2>Your Posted Announcements</h2>
+                <div class="cards">
+                <?php if (count($rep_announcements) === 0): ?>
+                    <p>You haven't posted any announcements yet.</p>
+                <?php endif; ?>
+                <?php foreach ($rep_announcements as $a): ?>
+                    <div class="card">
+                        <h3><?= htmlspecialchars($a['title']); ?></h3>
+                        <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
+                        <p><?= nl2br(htmlspecialchars($a['message'])); ?></p>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+
                 <h2>Post an Announcement</h2>
                 
+                <?php if (count($rep_clubs) === 0): ?>
+                    <p>You need an approved club before you can post announcements.</p>
+                <?php else: ?>
+
                 <form id="announcement-form" method="post">
                     <div class="form-group">
                         <label for="announcement-club">Club</label>
@@ -296,6 +323,10 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <button type="submit" class="btn">Post Announcement</button>
                     <div id="announcement-message" class="message"></div>
                 </form>
+
+                <?php endif; ?>
+
+
 
             </section>
 
