@@ -138,6 +138,20 @@ $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 <h2>Upcoming Events</h2>
 
+                <h2>Club Announcements</h2>
+                <div class="cards">
+                    <?php if (count($announcements) === 0): ?>
+                        <p>No announcements</p>
+                    <?php endif; ?>
+                    <?php foreach ($announcements as $a): ?>
+                        <div class="card">
+                            <h3><?= htmlspecialchars($a['title']); ?></h3>
+                            <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
+                            <p><?= htmlspecialchars($a['message']); ?></p>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
                 <div class="cards">
 <?php if (count($events) === 0): ?>
                     <p>No upcoming events</p>
@@ -204,6 +218,30 @@ $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="card"><h3>Events</h3><p>Coming soon</p></div>
                     <div class="card"><h3>Announcements</h3><p>Coming soon</p></div>
                 </div>
+                
+                <h2>Post an Announcement</h2>
+                
+                <form id="announcement-form" method="post">
+                    <div class="form-group">
+                        <label for="announcement-club">Club</label>
+                        <select id="announcement-club" name="club_id">
+                <?php foreach ($rep_clubs as $c): ?>
+                            <option value="<?= $c['club_id']; ?>"><?= htmlspecialchars($c['name']); ?></option>
+                <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="announcement-title">Title</label>
+                        <input type="text" id="announcement-title" name="title" maxlength="80">
+                    </div>
+                    <div class="form-group">
+                        <label for="announcement-text">Message</label>
+                        <textarea id="announcement-text" name="message" rows="4" maxlength="1000"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Post Announcement</button>
+                    <div id="announcement-message" class="message"></div>
+                </form>
+
             </section>
 
             <!-- ========== ADMINISTRATOR INTERFACE (AdminUI) ========== -->
