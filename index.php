@@ -192,20 +192,6 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 <h2>Upcoming Events</h2>
 
-                <h2>Club Announcements</h2>
-                <div class="cards">
-                    <?php if (count($announcements) === 0): ?>
-                        <p>No announcements</p>
-                    <?php endif; ?>
-                    <?php foreach ($announcements as $a): ?>
-                        <div class="card">
-                            <h3><?= htmlspecialchars($a['title']); ?></h3>
-                            <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
-                            <p><?= htmlspecialchars($a['message']); ?></p>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-
                 <div class="cards">
 <?php if (count($events) === 0): ?>
                     <p>No upcoming events</p>
@@ -222,6 +208,21 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
 <?php endforeach; ?>
                 </div>
+
+                <h2>Club Announcements</h2>
+                <div class="cards">
+                    <?php if (count($announcements) === 0): ?>
+                        <p>No announcements</p>
+                    <?php endif; ?>
+                    <?php foreach ($announcements as $a): ?>
+                        <div class="card">
+                            <h3><?= htmlspecialchars($a['title']); ?></h3>
+                            <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
+                            <p><?= htmlspecialchars($a['message']); ?></p>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                
             </section>
 
             <!-- ========== CLUB REPRESENTATIVE INTERFACE (ClubUI) ========== -->
