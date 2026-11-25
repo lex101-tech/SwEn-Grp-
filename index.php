@@ -1,5 +1,6 @@
-73ffdc70a582cf26c1c94d0b53f0a37818d40db6
+
 <?php
+// 73ffdc70a582cf26c1c94d0b53f0a37818d40db6
 // Initialize the session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -185,6 +186,7 @@ if (($_GET['action'] ?? '') === 'update_status'
 }
 
 
+
 /* ===== STUDENT: REQUEST TO JOIN A CLUB ===== */
 if (($_GET['action'] ?? '') === 'request_join'
     && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -213,17 +215,43 @@ if (($_GET['action'] ?? '') === 'request_join'
         exit;
     }
 
+    // Check whether the student has a previous request
     $stmt = $conn->prepare(
-        "SELECT request_id FROM memberships
+        "SELECT request_id, status FROM memberships
          WHERE student_id = ? AND club_id = ?"
     );
     $stmt->execute([$_SESSION['user_id'], $club_id]);
 
-    if ($stmt->fetch()) {
-        echo "You have already requested to join this club.";
+    $existingRequest = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existingRequest) {
+
+        if ($existingRequest['status'] === 'Declined') {
+
+            // Allow the student to reapply
+            $stmt = $conn->prepare(
+                "UPDATE memberships
+                 SET status = 'Pending', requested_at = NOW()
+                 WHERE request_id = ?"
+            );
+
+            $stmt->execute([$existingRequest['request_id']]);
+
+            echo "Your new request to join has been submitted successfully.";
+
+        } elseif ($existingRequest['status'] === 'Accepted') {
+
+            echo "You are already a member of this club.";
+
+        } else {
+
+            echo "You already have a pending request for this club.";
+        }
+
         exit;
     }
 
+    // Submit a new request if no previous request exists
     $stmt = $conn->prepare(
         "INSERT INTO memberships (student_id, club_id, status)
          VALUES (?, ?, 'Pending')"
@@ -234,6 +262,7 @@ if (($_GET['action'] ?? '') === 'request_join'
     echo "Your request to join has been submitted successfully.";
     exit;
 }
+
 
 
 /* ===== REPRESENTATIVE: RESPOND TO MEMBERSHIP REQUEST ===== */
@@ -481,6 +510,23 @@ $sql = "SELECT events.title, events.start_time, events.venue,
 $stmt = $conn->query($sql);
 $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Retrieve the student's membership requests and their statuses
+$student_memberships = [];
+
+if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'Student') {
+    $stmt = $conn->prepare(
+        "SELECT clubs.name AS club_name, memberships.status,
+                memberships.requested_at
+         FROM memberships
+         JOIN clubs ON memberships.club_id = clubs.club_id
+         WHERE memberships.student_id = ?
+         ORDER BY memberships.requested_at DESC"
+    );
+
+    $stmt->execute([$_SESSION['user_id']]);
+    $student_memberships = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 // Clubs waiting for administrator review
 $sql = "SELECT club_id, name, category, registration_date
         FROM clubs
@@ -580,32 +626,75 @@ if ($current_role === 'Student') {
 </head>
 
 <body>
-    <header>
-        <div class="container">
+  
+<header class="app-sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-icon">F</div>
+        <div>
             <h1>FST Club Hub</h1>
-
-           <nav>
-    <ul>
-        <?php if (!$current_user_id): ?>
-            <li><a href="#" class="nav-link" data-section="auth-section">Login / Register</a></li>
-
-        <?php elseif ($current_role === 'Student'): ?>
-            <li><a href="#" class="nav-link" data-section="student-section">Students</a></li>
-
-        <?php elseif ($current_role === 'Representative'): ?>
-            <li><a href="#" class="nav-link" data-section="club-section">Club Representatives</a></li>
-
-        <?php elseif ($current_role === 'Administrator'): ?>
-            <li><a href="#" class="nav-link" data-section="admin-section">Administrators</a></li>
-        <?php endif; ?>
-
-        <?php if ($current_user_id): ?>
-            <li><a href="index.php?action=logout">Log Out</a></li>
-        <?php endif; ?>
-    </ul>
-</nav>
+            <small>Student Community</small>
         </div>
-    </header>
+    </div>
+
+    <nav class="sidebar-nav">
+        <p class="nav-heading">MENU</p>
+
+        <ul>
+            <?php if (!$current_user_id): ?>
+
+                <li>
+                    <a href="#" class="nav-link" data-section="auth-section">
+                        <span class="nav-icon">↪</span>
+                        Login / Register
+                    </a>
+                </li>
+
+            <?php elseif ($current_role === 'Student'): ?>
+
+                <li>
+                    <a href="#" class="nav-link" data-section="student-section">
+                        <span class="nav-icon">⌂</span>
+                        Student Dashboard
+                    </a>
+                </li>
+
+            <?php elseif ($current_role === 'Representative'): ?>
+
+                <li>
+                    <a href="#" class="nav-link" data-section="club-section">
+                        <span class="nav-icon">▣</span>
+                        Club Dashboard
+                    </a>
+                </li>
+
+            <?php elseif ($current_role === 'Administrator'): ?>
+
+                <li>
+                    <a href="#" class="nav-link" data-section="admin-section">
+                        <span class="nav-icon">⚙</span>
+                        Administration
+                    </a>
+                </li>
+
+            <?php endif; ?>
+
+            <?php if ($current_user_id): ?>
+                <li class="logout-item">
+                    <a href="index.php?action=logout">
+                        <span class="nav-icon">↗</span>
+                        Log Out
+                    </a>
+                </li>
+            <?php endif; ?>
+        </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+        <p>FST Club Hub</p>
+        <small>Faculty of Science and Technology</small>
+    </div>
+</header>
+
 
     <main>
         <div class="container">
@@ -657,9 +746,44 @@ if ($current_role === 'Student') {
 
 </section>
 
-
             <!-- ========== STUDENT INTERFACE (StudentUI) ========== -->
             <section id="student-section" class="page-section active">
+<h2>My Membership Requests</h2>
+
+<div class="cards">
+    <?php if (empty($student_memberships)): ?>
+        <div class="card">
+            <p>You have not submitted any membership requests yet.</p>
+        </div>
+    <?php else: ?>
+        <?php foreach ($student_memberships as $membership): ?>
+            <div class="card">
+                <h3><?= htmlspecialchars($membership['club_name']) ?></h3>
+
+                <p>
+                    <strong>Status:</strong>
+                    <?= htmlspecialchars($membership['status']) ?>
+                </p>
+
+                <?php if ($membership['status'] === 'Pending'): ?>
+                    <p>Your request is awaiting a response from the club representative.</p>
+
+                <?php elseif ($membership['status'] === 'Accepted'): ?>
+                    <p>Your membership request was accepted!</p>
+
+                <?php elseif ($membership['status'] === 'Declined'): ?>
+                    <p>Your request to join this club was declined.</p>
+                <?php endif; ?>
+
+                <small>
+                    Requested on:
+                    <?= htmlspecialchars($membership['requested_at']) ?>
+                </small>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
                 <h2>Discover Clubs</h2>
 
                 <div class="search-bar">
@@ -683,7 +807,9 @@ if ($current_role === 'Student') {
 
                 <h2>Upcoming Events</h2>
 
-                <div class="cards">
+<a href="event_new.php" class="btn">View and Filter All Events</a>
+
+<div class="cards">
 <?php if (count($events) === 0): ?>
                     <p>No upcoming events</p>
 <?php endif; ?>
@@ -772,15 +898,18 @@ if ($current_role === 'Student') {
     <div class="card">
         <h3>Membership Requests</h3>
         <p>Review and respond to students who want to join your clubs.</p>
-    </div>
+
+<a href="#membership-requests" class="btn">View Requests</a>
+</div>
 
     <div class="card">
         <h3>Events</h3>
-        <p>Manage your club events.</p>
-    </div>
+<p>Manage your club events.</p>
+<a href="events.php" class="btn">Create / Manage Events</a>
+</div>
 </div>
 
-<h2>Pending Membership Requests</h2>
+<h2 id="membership-requests">Pending Membership Requests</h2>
 
 <div class="cards">
     <?php if (count($rep_membership_requests) === 0): ?>
