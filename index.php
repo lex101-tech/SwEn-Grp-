@@ -57,35 +57,59 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
     exit;
 }
 
-// Post an announcement (Club Representative)
+/* ---------------------------------------------------------------
+   ANNOUNCEMENTS: Post an announcement (Club Representative)
+   Called by scripts.js: index.php?action=post_announcement (POST)
+   Supports US-05. Corresponds to ClubFunc.postAnnouncement() in the SDS.
+   --------------------------------------------------------------- */
 if (isset($_GET['action']) && $_GET['action'] === 'post_announcement') {
-    $current_user_id = 2; // TEMP: sample rep. Replace with $_SESSION when login exists.
+    // TEMP: fixed ID of the sample representative (matches the sample data).
+    // Replace with the logged-in user's ID from $_SESSION once login exists.
+    $current_user_id = 2; 
 
+    // Read the form values. "?? ''" gives an empty string if a field is missing.
+    // trim() removes spaces at the start and end so "   " counts as blank.
     $club_id = $_POST['club_id'] ?? '';
     $title   = trim($_POST['title'] ?? '');
     $message = trim($_POST['message'] ?? '');
 
+    // Validation: all fields are mandatory.
     if ($club_id === '' || $title === '' || $message === '') {
-        echo "Please fill in all fields."; exit;
-    }
-    if (mb_strlen($title) > 80 || mb_strlen($message) > 1000) {
-        echo "Title must be 80 characters or fewer and message 1000 or fewer."; exit;
+        echo "Please fill in all fields."; 
+        exit;
     }
 
-    // Must be the leader of this club AND the club must be Approved
+    // Validation: enforce the SRS limits (title 80, message 1000) on the server,
+    // because the form's maxlength can be bypassed. mb_strlen counts characters correctly.
+    if (mb_strlen($title) > 80 || mb_strlen($message) > 1000) {
+        echo "Title must be 80 characters or fewer and message 1000 or fewer."; 
+        exit;
+    }
+
+    
+    // Authorization: the user must be a leader of this club AND the club
+    // must be Approved (SDS assumption: only approved clubs can post).
+    // Prepared statement (:placeholders) protects against SQL injection.
     $stmt = $conn->prepare("SELECT club_id FROM clubs
                             WHERE club_id = :club_id AND leader_id = :user_id
                             AND status = 'Approved'");
     $stmt->execute(['club_id' => $club_id, 'user_id' => $current_user_id]);
+
+    // fetch() returns false when no row matched, so the user is not allowed to post.
     if (!$stmt->fetch()) {
-        echo "You can only post announcements for your own approved clubs."; exit;
+        echo "You can only post announcements for your own approved clubs.";
+        exit;
     }
 
+    // All checks passed: save the announcement.
+    // announcement_id and posted_at are filled in automatically by the database.
     $stmt = $conn->prepare("INSERT INTO announcements (club_id, title, message)
                             VALUES (:club_id, :title, :message)");
     $stmt->execute(['club_id' => $club_id, 'title' => $title, 'message' => $message]);
+
+    // Plain-text reply: scripts.js shows it and checks for this exact text.
     echo "Announcement posted.";
-    exit;
+    exit; // Stop here so the page HTML is not sent back with the message.
 }
 
 /* ---------------------------------------------------------------
@@ -115,17 +139,24 @@ $sql = "SELECT club_id, name, category, registration_date
 $stmt = $conn->query($sql);
 $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Temporary user IDs for testing. Replace with $_SESSION when login exists.
-$current_rep_id = 2;      // TEMP
-$current_student_id = 3;  // TEMP
+/* ---------------------------------------------------------------
+   ANNOUNCEMENTS: data for the page
+   --------------------------------------------------------------- */
 
-// Clubs this rep can post for (dropdown)
+// TEMP: fixed IDs of the sample users. Replace with $_SESSION values after login is built.
+$current_rep_id = 2;
+$current_student_id = 3;
+
+// Clubs this representative leads and that are Approved.
+// Used to fill the club dropdown in the post form.
 $stmt = $conn->prepare("SELECT club_id, name FROM clubs
                         WHERE leader_id = :uid AND status = 'Approved'");
 $stmt->execute(['uid' => $current_rep_id]);
 $rep_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Announcements posted by this rep's clubs (newest first)
+// Announcements a student may see: only from Approved clubs where the
+// student's membership has been Accepted (SRS: visible to active members only).
+// JOINs link announcements -> clubs -> memberships. Newest first.
 $stmt = $conn->prepare("SELECT announcements.title, announcements.message,
                                announcements.posted_at, clubs.name AS club_name
                         FROM announcements
@@ -135,7 +166,8 @@ $stmt = $conn->prepare("SELECT announcements.title, announcements.message,
 $stmt->execute(['uid' => $current_rep_id]);
 $rep_announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Announcements a student may see: only clubs where they're an accepted member
+// Announcements posted by the clubs this representative leads.
+// Lets the representative confirm what has been posted. Newest first.
 $stmt = $conn->prepare("SELECT announcements.title, announcements.message,
                                announcements.posted_at, clubs.name AS club_name
                         FROM announcements
@@ -219,6 +251,7 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <?php endforeach; ?>
                 </div>
 
+                <!-- ANNOUNCEMENTS (student view): only from clubs the student has joined -->
                 <h2>Club Announcements</h2>
                 <div class="cards">
                     <?php if (count($announcements) === 0): ?>
@@ -283,6 +316,9 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="card"><h3>Events</h3><p>Coming soon</p></div>
                 </div>
                 
+                <!-- ANNOUNCEMENTS (representative view): list of posted announcements +  post form -->
+
+                <!-- Announcements already posted by this representative's clubs -->
                 <h2>Your Posted Announcements</h2>
                 <div class="cards">
                 <?php if (count($rep_announcements) === 0): ?>
@@ -297,15 +333,19 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php endforeach; ?>
                 </div>
 
+                <!-- Form to Post Announcements -->
                 <h2>Post an Announcement</h2>
                 
                 <?php if (count($rep_clubs) === 0): ?>
+                    <!-- No approved club, so there is nothing to post to (e.g. club still Pending) -->
                     <p>You need an approved club before you can post announcements.</p>
                 <?php else: ?>
 
+                <!-- Submitted by scripts.js with fetch (see "post an announcement" there) -->
                 <form id="announcement-form" method="post">
                     <div class="form-group">
                         <label for="announcement-club">Club</label>
+                        <!-- Only the clubs this representative leads and that are approved -->
                         <select id="announcement-club" name="club_id">
                 <?php foreach ($rep_clubs as $c): ?>
                             <option value="<?= $c['club_id']; ?>"><?= htmlspecialchars($c['name']); ?></option>
@@ -314,13 +354,16 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="form-group">
                         <label for="announcement-title">Title</label>
+                        <!-- maxlength 80 matches the SRS and the database column -->
                         <input type="text" id="announcement-title" name="title" maxlength="80">
                     </div>
                     <div class="form-group">
                         <label for="announcement-text">Message</label>
+                        <!-- maxlength 1000 matches the SRS and the database column -->
                         <textarea id="announcement-text" name="message" rows="4" maxlength="1000"></textarea>
                     </div>
                     <button type="submit" class="btn">Post Announcement</button>
+                    <!-- scripts.js writes the server's reply here -->
                     <div id="announcement-message" class="message"></div>
                 </form>
 

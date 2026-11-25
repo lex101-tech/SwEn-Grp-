@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let pendingTable = document.getElementById("pending-clubs");
 
+    // Announcement form elements (club representative section)
     let announcementForm = document.getElementById("announcement-form");
     let announcementMessage = document.getElementById("announcement-message");
 
@@ -180,22 +181,32 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ===== Club representative: post an announcement =====
+    // The form only exists when the rep has an approved club, so check it exists first.
     if (announcementForm) {
         announcementForm.addEventListener("submit", function (event) {
-            event.preventDefault();
+            event.preventDefault(); // Stop the normal page reload on submit
+
+            // Collect the club, title and message fields from the form
             let formData = new FormData(announcementForm);
 
+            // Send to the post_announcement handler in index.php
             fetch("index.php?action=post_announcement", {
                 method: "POST",
                 body: formData
             })
                 .then(function (response) {
-                    return response.text();
+                    return response.text(); // The server replies with a plain-text message
                 })
                 .then(function (data) {
+                // Show the server's message (success or validation error)
                 announcementMessage.textContent = data;
+
+                // Clear the form only if the post succeeded, so a failed
+                // attempt does not make the user retype everything
                 if (data === "Announcement posted.") {
                     announcementForm.reset();
+
+                    // Reload so the new announcement appears in the list
                     location.reload();
                 }
             });
