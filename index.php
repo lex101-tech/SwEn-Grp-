@@ -71,8 +71,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
    Supports US-05. Corresponds to ClubFunc.postAnnouncement() in the SDS.
    --------------------------------------------------------------- */
 if (isset($_GET['action']) && $_GET['action'] === 'post_announcement') {
-    // TEMP: fixed ID of the sample representative (matches the sample data).
-    // Replace with the logged-in user's ID from $_SESSION once login exists.
+    
     $current_user_id = $_SESSION['user_id'] ?? null;
     $current_role    = $_SESSION['role'] ?? null;
 
