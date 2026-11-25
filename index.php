@@ -1,8 +1,3 @@
-<<<<<<< Updated upstream
-=======
-// index
-
->>>>>>> Stashed changes
 <?php
 // Initialize the session
 if (session_status() === PHP_SESSION_NONE) {
