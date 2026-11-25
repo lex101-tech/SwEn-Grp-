@@ -19,7 +19,7 @@ body {
 
 /* ===== Header and navigation ===== */
 header {
-    /* TODO 1: Choose a background colour for the header (e.g. a dark blue like #14305c). */
+    /* Background colour for the header (dark blue: like #14305c). */
     background-color: #14305c;
     color: white;
     padding: 15px 0;

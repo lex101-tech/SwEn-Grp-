@@ -1,3 +1,5 @@
+// scripts 
+
 
 document.addEventListener("DOMContentLoaded", function () {
     let navLinks = document.querySelectorAll("nav a");

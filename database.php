@@ -2,10 +2,10 @@
 // ===== Connection settings for XAMPP on your own computer =====
 // These are the XAMPP defaults. Change them if your setup is different.
 // When the project is cloud-hosted, these values will change.
-$host = 'localhost';
-$username = 'root';
-$password = '';
-$dbname = 'fst_club_hub';
+$host = 'sql112.infinityfree.com';
+$username = 'if0_43519393';
+$password = 'Fredriqa7425';
+$dbname = 'if0_43519393_fstclubhub';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
