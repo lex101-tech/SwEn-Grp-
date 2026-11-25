@@ -201,5 +201,52 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
-        
+    
+    // ===== US-07: Edit club profile =====
+    let editProfileButton = document.getElementById("edit-profile-button");
+    let editProfileSection = document.getElementById("edit-profile-section");
+
+    if (editProfileButton && editProfileSection) {
+    editProfileButton.addEventListener("click", function () {
+        editProfileSection.hidden = false;
+        editProfileSection.scrollIntoView({ behavior: "smooth" });
+    });
+
+
+}
+// US-07: Save and cancel profile changes
+document.querySelectorAll(".edit-profile-form").forEach(function (form) {
+
+    let message = form.querySelector(".profile-message");
+    let cancelButton = form.querySelector(".cancel-profile-button");
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        try {
+            let response = await fetch("index.php?action=update_profile", {
+                method: "POST",
+                body: new FormData(form)
+            });
+
+            message.textContent = await response.text();
+
+            if (response.ok && message.textContent.trim() === "Club profile updated successfully.") {
+             form.querySelectorAll("input, textarea").forEach(function (field) {
+             field.defaultValue = field.value;
+            });
+        }
+
+        } catch (error) {
+            message.textContent = "Unable to update profile.";
+        }
+    });
+
+    cancelButton.addEventListener("click", function () {
+        form.reset();
+        message.textContent = "";
+        editProfileSection.hidden = true;
+    });
+});
+
 });
