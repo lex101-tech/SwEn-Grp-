@@ -1,4 +1,4 @@
-
+73ffdc70a582cf26c1c94d0b53f0a37818d40db6
 <?php
 // Initialize the session
 if (session_status() === PHP_SESSION_NONE) {
