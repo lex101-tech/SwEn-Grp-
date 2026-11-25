@@ -119,7 +119,83 @@ if (isset($_GET['action']) && $_GET['action'] === 'post_announcement') {
     echo "Announcement posted.";
     exit; // Stop here so the page HTML is not sent back with the message.
 }
+// ===== US-07: Update club profile =====
+if (($_GET['action'] ?? '') === 'update_profile'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
+    // Temporary representative ID until login is implemented
+    $current_user_id = 2;
+
+    // Retrieve the submitted information
+    $club_id = $_POST['club_id'] ?? '';
+    $description = trim($_POST['description'] ?? '');
+    $email = trim($_POST['contact_email'] ?? '');
+    $phone = trim($_POST['contact_phone'] ?? '');
+    $meeting = trim($_POST['meeting_info'] ?? '');
+
+    // Validate description
+    if ($description === '' || mb_strlen($description) > 500) {
+        echo "Description must be between 1 and 500 characters.";
+        exit;
+    }
+
+    // Validate email
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)
+        || mb_strlen($email) > 100) {
+        echo "Invalid email address.";
+        exit;
+    }
+
+    // Validate phone number
+    if ($phone !== '' && !preg_match('/^\+?[0-9]{7,15}$/', $phone)) {
+        echo "Invalid phone number.";
+        exit;
+    }
+
+    // Validate meeting information
+    if (mb_strlen($meeting) > 200) {
+        echo "Meeting information is too long.";
+        exit;
+    }
+
+    // Check club ownership and approval status
+    $stmt = $conn->prepare("SELECT club_id FROM clubs
+                            WHERE club_id = :club_id
+                            AND leader_id = :uid
+                            AND status = 'Approved'");
+
+    $stmt->execute([
+        'club_id' => $club_id,
+        'uid' => $current_user_id
+    ]);
+
+    if (!$stmt->fetch()) {
+        echo "You cannot edit this club.";
+        exit;
+    }
+
+    // Update the club profile
+    $stmt = $conn->prepare("UPDATE clubs
+                            SET description = :description,
+                                contact_email = :email,
+                                contact_phone = :phone,
+                                meeting_info = :meeting
+                            WHERE club_id = :club_id
+                            AND leader_id = :uid
+                            AND status = 'Approved'");
+
+    $stmt->execute([
+        'description' => $description,
+        'email' => $email,
+        'phone' => $phone,
+        'meeting' => $meeting,
+        'club_id' => $club_id,
+        'uid' => $current_user_id
+    ]);
+
+    echo "Club profile updated successfully.";
+    exit;
+}
 /* ---------------------------------------------------------------
    PART B: Data for the rest of the page
    Study how the JOIN works.
@@ -154,6 +230,14 @@ $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // TEMP: fixed IDs of the sample users. Replace with $_SESSION values after login is built.
 $current_rep_id = 2;
 $current_student_id = 3;
+
+// US-07: Retrieve the representative's approved club profiles
+    $stmt = $conn->prepare("SELECT club_id, name, description,
+                           contact_email, contact_phone, meeting_info
+                           FROM clubs
+                           WHERE leader_id = :uid AND status = 'Approved'");
+    $stmt->execute(['uid' => $current_rep_id]);
+    $club_profiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Clubs this representative leads and that are Approved.
 // Used to fill the club dropdown in the post form.
@@ -319,7 +403,7 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <h2>Manage Your Club</h2>
 
                 <div class="cards">
-                    <div class="card"><h3>Club Profile</h3><p>Coming soon</p></div>
+                    <div class="card"><h3>Club Profile</h3><p>Update your club description, contact details and meeting information.</p><button type="button" class="btn" id="edit-profile-button">Edit Profile</button></div>
                     <div class="card"><h3>Membership Requests</h3><p>Coming soon</p></div>
                     <div class="card"><h3>Events</h3><p>Coming soon</p></div>
                 </div>
@@ -327,6 +411,58 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <!-- ANNOUNCEMENTS (representative view): list of posted announcements +  post form -->
 
                 <!-- Announcements already posted by this representative's clubs -->
+
+                <!-- US-07: Edit Club Profile -->
+                <div id="edit-profile-section" hidden>
+
+                <h2>Edit Club Profile</h2>
+
+                <?php foreach ($club_profiles as $club): ?>
+
+                  <form class="edit-profile-form">
+
+                    <input type="hidden" name="club_id"
+                   value="<?= $club['club_id']; ?>">
+
+            <label>Club Name</label>
+            <input type="text"
+                   value="<?= htmlspecialchars($club['name']); ?>"
+                   readonly>
+
+            <label>Description</label>
+            <textarea name="description" rows="4"
+                      maxlength="500" required><?= htmlspecialchars($club['description']); ?></textarea>
+
+            <label>Contact Email</label>
+            <input type="email" name="contact_email"
+                   maxlength="100"
+                   value="<?= htmlspecialchars($club['contact_email']); ?>"
+                   required>
+
+            <label>Contact Phone</label>
+            <input type="tel" name="contact_phone"
+                   maxlength="20"
+                   value="<?= htmlspecialchars($club['contact_phone'] ?? ''); ?>">
+
+            <label>Meeting Information</label>
+            <textarea name="meeting_info" rows="3"
+                      maxlength="200"><?= htmlspecialchars($club['meeting_info'] ?? ''); ?></textarea>
+
+            <button type="submit" class="btn">
+                Save Changes
+            </button>
+
+            <button type="button" class="btn cancel-profile-button">
+                Cancel
+            </button>
+
+            <div class="message profile-message"></div>
+
+        </form>
+
+    <?php endforeach; ?>
+
+</div>
                 <h2>Your Posted Announcements</h2>
                 <div class="cards">
                 <?php if (count($rep_announcements) === 0): ?>
