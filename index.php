@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-=======
-// index
 
->>>>>>> Stashed changes
 <?php
 // Initialize the session
 if (session_status() === PHP_SESSION_NONE) {
@@ -11,19 +7,280 @@ if (session_status() === PHP_SESSION_NONE) {
 // Connect to the database (see database.php)
 require_once 'database.php';
 
+/* ===== ACCOUNT REGISTRATION ===== */
+if (($_GET['action'] ?? '') === 'register_account'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $name = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $role = $_POST['role'] ?? 'Student';
+
+    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)
+        || strlen($password) < 8) {
+        echo "Enter valid details. Password must be at least 8 characters.";
+        exit;
+    }
+
+    if (!in_array($role, ['Student', 'Representative'], true)) {
+        echo "Invalid account role.";
+        exit;
+    }
+
+    $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+
+    if ($stmt->fetch()) {
+        echo "An account with this email already exists.";
+        exit;
+    }
+
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+
+    $stmt = $conn->prepare(
+        "INSERT INTO users (name, email, password_hash, role)
+         VALUES (?, ?, ?, ?)"
+    );
+
+    $stmt->execute([$name, $email, $hash, $role]);
+
+    echo "Account created successfully. You can now log in.";
+    exit;
+}
+
+/* ===== USER LOGIN ===== */
+if (($_GET['action'] ?? '') === 'login'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    $stmt = $conn->prepare(
+        "SELECT user_id, name, email, password_hash, role
+         FROM users WHERE email = ?"
+    );
+
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user || !password_verify($password, $user['password_hash'])) {
+        echo "Incorrect email or password.";
+        exit;
+    }
+
+    session_regenerate_id(true);
+
+    $_SESSION['user_id'] = $user['user_id'];
+    $_SESSION['name'] = $user['name'];
+    $_SESSION['role'] = $user['role'];
+
+    echo "Login successful.";
+    exit;
+}
+
+/* ===== USER LOGOUT ===== */
+if (($_GET['action'] ?? '') === 'logout') {
+
+    $_SESSION = [];
+
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'],
+            $params['domain'],
+            $params['secure'],
+            $params['httponly']
+        );
+    }
+
+    session_destroy();
+
+    header("Location: index.php");
+    exit;
+}
+
+
+/* ===== REGISTER A CLUB ===== */
+if (($_GET['action'] ?? '') === 'register_club'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Representative') {
+        echo "Only club representatives can register clubs.";
+        exit;
+    }
+
+    $name = trim($_POST['name'] ?? '');
+    $category = trim($_POST['category'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $contact_email = trim($_POST['contact_email'] ?? '');
+
+    $allowed_categories = [
+        'Academic', 'Cultural', 'Service', 'Sports', 'Technology'
+    ];
+
+    if ($name === '' || $description === '' ||
+        !filter_var($contact_email, FILTER_VALIDATE_EMAIL) ||
+        !in_array($category, $allowed_categories, true)) {
+        echo "Please enter valid club details.";
+        exit;
+    }
+
+    if (strlen($description) > 500) {
+        echo "Description must not exceed 500 characters.";
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "INSERT INTO clubs
+        (name, category, description, contact_email, status, leader_id)
+        VALUES (?, ?, ?, ?, 'Pending', ?)"
+    );
+
+    $stmt->execute([
+        $name,
+        $category,
+        $description,
+        $contact_email,
+        $_SESSION['user_id']
+    ]);
+
+    echo "Club registration submitted successfully. Awaiting administrator approval.";
+    exit;
+}
+
+
+/* ===== ADMINISTRATOR: APPROVE OR REJECT CLUB ===== */
+if (($_GET['action'] ?? '') === 'update_status'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+        echo "Only administrators can approve or reject clubs.";
+        exit;
+    }
+
+    $club_id = (int) ($_POST['club_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+
+    if ($club_id <= 0 || !in_array($status, ['Approved', 'Rejected'], true)) {
+        echo "Invalid club or status.";
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "UPDATE clubs SET status = ? WHERE club_id = ? AND status = 'Pending'"
+    );
+
+    $stmt->execute([$status, $club_id]);
+
+    if ($stmt->rowCount() > 0) {
+        echo "Club " . strtolower($status) . " successfully.";
+    } else {
+        echo "Club not found or has already been processed.";
+    }
+
+    exit;
+}
+
+
+/* ===== STUDENT: REQUEST TO JOIN A CLUB ===== */
+if (($_GET['action'] ?? '') === 'request_join'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Student') {
+        echo "Only students can request to join clubs.";
+        exit;
+    }
+
+    $club_id = (int) ($_POST['club_id'] ?? 0);
+
+    if ($club_id <= 0) {
+        echo "Invalid club.";
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "SELECT club_id FROM clubs
+         WHERE club_id = ? AND status = 'Approved'
+         AND accepting_members = 1"
+    );
+    $stmt->execute([$club_id]);
+
+    if (!$stmt->fetch()) {
+        echo "This club is unavailable or is not accepting members.";
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "SELECT request_id FROM memberships
+         WHERE student_id = ? AND club_id = ?"
+    );
+    $stmt->execute([$_SESSION['user_id'], $club_id]);
+
+    if ($stmt->fetch()) {
+        echo "You have already requested to join this club.";
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "INSERT INTO memberships (student_id, club_id, status)
+         VALUES (?, ?, 'Pending')"
+    );
+
+    $stmt->execute([$_SESSION['user_id'], $club_id]);
+
+    echo "Your request to join has been submitted successfully.";
+    exit;
+}
+
+
+/* ===== REPRESENTATIVE: RESPOND TO MEMBERSHIP REQUEST ===== */
+if (($_GET['action'] ?? '') === 'update_membership'
+    && $_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Representative') {
+        echo "Only club representatives can manage membership requests.";
+        exit;
+    }
+
+    $request_id = (int) ($_POST['request_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+
+    if ($request_id <= 0 || !in_array($status, ['Accepted', 'Declined'], true)) {
+        echo "Invalid request.";
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "UPDATE memberships
+         JOIN clubs ON memberships.club_id = clubs.club_id
+         SET memberships.status = ?
+         WHERE memberships.request_id = ?
+         AND memberships.status = 'Pending'
+         AND clubs.leader_id = ?"
+    );
+
+    $stmt->execute([$status, $request_id, $_SESSION['user_id']]);
+
+    if ($stmt->rowCount() > 0) {
+        echo "Membership request " . strtolower($status) . " successfully.";
+    } else {
+        echo "Request not found or you do not manage this club.";
+    }
+
+    exit;
+}
+
+
 /* ---------------------------------------------------------------
    PART A: Club search (called by scripts.js using fetch)
    --------------------------------------------------------------- */
 if (isset($_GET['action']) && $_GET['action'] === 'search') {
-    $keyword = "";
-    if (isset($_GET['keyword'])) {
-        $keyword = $_GET['keyword'];
-    }
 
-    $category = "";
-    if (isset($_GET['category'])) {
-        $category = $_GET['category'];
-    }
+    $keyword = trim($_GET['keyword'] ?? '');
+    $category = trim($_GET['category'] ?? '');
 
     $sql = "SELECT club_id, name, category, description
             FROM clubs
@@ -41,37 +298,27 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
 
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Shows a message if no clubs are found and exits the function without crashing
     if (count($results) === 0) {
-        echo "<p>No clubs found</p>";
-    }
-    else {
+        echo "<p>No clubs found.</p>";
+    } else {
         foreach ($results as $club) {
             echo "<div class='club-card'>";
             echo "<h3>" . htmlspecialchars($club['name']) . "</h3>";
             echo "<p>" . htmlspecialchars($club['category']) . "</p>";
             echo "<p>" . htmlspecialchars($club['description']) . "</p>";
+
+            if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'Student') {
+                echo "<button type='button' class='join-button' data-club-id='" .
+                     (int)$club['club_id'] . "'>Request to Join</button>";
+            }
+
             echo "</div>";
         }
     }
-    exit;
-    
-?>
-<?php foreach ($results as $row): ?>
-    <div class="card">
-        <h3><?= htmlspecialchars($row['name']); ?></h3>
-        <p class="category"><?= htmlspecialchars($row['category']); ?></p>
-        <!-- TODO 5: Enter the column name that holds the club's description. -->
-        <p><?= htmlspecialchars($row['__________']); ?></p>
-        <button type="button" class="btn join-button"
-                data-club-id="<?= $row['club_id']; ?>">
-            Request to Join
-        </button>
-    </div>
-<?php endforeach; ?>
-<?php
+
     exit;
 }
+
 
 /* ---------------------------------------------------------------
    ANNOUNCEMENTS: Post an announcement (Club Representative)
@@ -253,6 +500,7 @@ $current_role    = $_SESSION['role'] ?? null;
 // Start empty so the page still works for other roles or logged-out users
 $rep_clubs = [];
 $rep_announcements = [];
+$rep_membership_requests = [];
 $announcements = [];
 $club_profiles = [];
 if ($current_role === 'Representative') {
@@ -279,7 +527,30 @@ if ($current_role === 'Representative') {
                             ORDER BY announcements.posted_at DESC");
     $stmt->execute(['uid' => $current_user_id]);
     $rep_announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+   
+    // Membership requests for clubs managed by this representative
+    $stmt = $conn->prepare(
+        "SELECT memberships.request_id,
+                memberships.status,
+                memberships.requested_at,
+                users.name AS student_name,
+                users.email AS student_email,
+                clubs.name AS club_name
+         FROM memberships
+         JOIN users ON memberships.student_id = users.user_id
+         JOIN clubs ON memberships.club_id = clubs.club_id
+         WHERE clubs.leader_id = :uid
+         AND memberships.status = 'Pending'
+         ORDER BY memberships.requested_at DESC"
+    );
+
+    $stmt->execute(['uid' => $current_user_id]);
+
+    $rep_membership_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+
 
 if ($current_role === 'Student') {
 
@@ -313,18 +584,79 @@ if ($current_role === 'Student') {
         <div class="container">
             <h1>FST Club Hub</h1>
 
-            <nav>
-                <ul>
-                    <li><a href="#" class="nav-link" data-section="student-section">Students</a></li>
-                    <li><a href="#" class="nav-link" data-section="club-section">Club Representatives</a></li>
-                    <li><a href="#" class="nav-link" data-section="admin-section">Administrators</a></li>
-                </ul>
-            </nav>
+           <nav>
+    <ul>
+        <?php if (!$current_user_id): ?>
+            <li><a href="#" class="nav-link" data-section="auth-section">Login / Register</a></li>
+
+        <?php elseif ($current_role === 'Student'): ?>
+            <li><a href="#" class="nav-link" data-section="student-section">Students</a></li>
+
+        <?php elseif ($current_role === 'Representative'): ?>
+            <li><a href="#" class="nav-link" data-section="club-section">Club Representatives</a></li>
+
+        <?php elseif ($current_role === 'Administrator'): ?>
+            <li><a href="#" class="nav-link" data-section="admin-section">Administrators</a></li>
+        <?php endif; ?>
+
+        <?php if ($current_user_id): ?>
+            <li><a href="index.php?action=logout">Log Out</a></li>
+        <?php endif; ?>
+    </ul>
+</nav>
         </div>
     </header>
 
     <main>
         <div class="container">
+	
+
+	
+<!-- ========== ACCOUNT ACCESS ========== -->
+<section id="auth-section" class="page-section <?= !$current_user_id ? 'active' : ''; ?>">
+
+    <h2>Welcome to FST Club Hub</h2>
+    <p>Create an account or log in to access the platform.</p>
+
+    <h3>Create an Account</h3>
+
+    <form id="account-register-form">
+        <label for="account-name">Full Name</label>
+        <input type="text" id="account-name" name="name" required>
+
+        <label for="account-email">Email Address</label>
+        <input type="email" id="account-email" name="email" required>
+
+        <label for="account-password">Password</label>
+        <input type="password" id="account-password"
+               name="password" minlength="8" required>
+
+        <label for="account-role">Account Type</label>
+        <select id="account-role" name="role" required>
+            <option value="Student">Student</option>
+            <option value="Representative">Club Representative</option>
+        </select>
+
+        <button type="submit" class="btn">Create Account</button>
+        <div id="account-register-message" class="message"></div>
+    </form>
+
+    <h3>Already have an account? Log In</h3>
+
+    <form id="login-form" method="POST" action="index.php?action=login">
+        <label for="login-email">Email Address</label>
+        <input type="email" id="login-email" name="email" required>
+
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password"
+               name="password" required>
+
+        <button type="submit" class="btn">Log In</button>
+        <div id="login-message" class="message"></div>
+    </form>
+
+</section>
+
 
             <!-- ========== STUDENT INTERFACE (StudentUI) ========== -->
             <section id="student-section" class="page-section active">
@@ -360,10 +692,10 @@ if ($current_role === 'Student') {
                     <div class="card">
                         <h3><?= htmlspecialchars($event['title']); ?></h3>
                         <p>Club: <?= htmlspecialchars($event['club_name']); ?></p>
-                        <!-- TODO 6: Enter the column name that holds the event's start date and time. -->
-                        <p>When: <?= htmlspecialchars($event['__________']); ?></p>
-                        <!-- TODO 7: Enter the column name that holds the event's venue. -->
-                        <p>Venue: <?= htmlspecialchars($event['__________']); ?></p>
+                        <!-- Column name that holds the event's start date and time. -->
+                        <p>When: <?= htmlspecialchars($event['start_time']); ?></p>
+                        <!-- Column name that holds the event's venue. -->
+                        <p>Venue: <?= htmlspecialchars($event['venue']); ?></p>
                     </div>
 <?php endforeach; ?>
                 </div>
@@ -411,15 +743,15 @@ if ($current_role === 'Student') {
 
                     <div class="form-group">
                         <label for="club-description">Description</label>
-                        <!-- TODO 10: Enter the maximum description length from the SRS. -->
+                        <!-- Maximum description length from the SRS. -->
                         <textarea id="club-description" name="description"
-                                  rows="4" maxlength="__________"></textarea>
+                                  rows="4" maxlength="500"></textarea>
                     </div>
 
                     <div class="form-group">
                         <label for="contact-email">Contact Email</label>
                         <!-- TODO 9: Enter the correct input type for an email address. -->
-                        <input type="__________" id="contact-email"
+                        <input type="email" id="contact-email"
                                name="contact_email" placeholder="club@example.com">
                     </div>
 
@@ -427,13 +759,60 @@ if ($current_role === 'Student') {
                     <div id="register-message" class="message"></div>
                 </form>
 
-                <h2>Manage Your Club</h2>
+                
+<h2>Manage Your Club</h2>
 
-                <div class="cards">
-                    <div class="card"><h3>Club Profile</h3><p>Update your club description, contact details and meeting information.</p><button type="button" class="btn" id="edit-profile-button">Edit Profile</button></div>
-                    <div class="card"><h3>Membership Requests</h3><p>Coming soon</p></div>
-                    <div class="card"><h3>Events</h3><p>Coming soon</p></div>
-                </div>
+<div class="cards">
+    <div class="card">
+        <h3>Club Profile</h3>
+        <p>Update your club description, contact details and meeting information.</p>
+        <button type="button" class="btn" id="edit-profile-button">Edit Profile</button>
+    </div>
+
+    <div class="card">
+        <h3>Membership Requests</h3>
+        <p>Review and respond to students who want to join your clubs.</p>
+    </div>
+
+    <div class="card">
+        <h3>Events</h3>
+        <p>Manage your club events.</p>
+    </div>
+</div>
+
+<h2>Pending Membership Requests</h2>
+
+<div class="cards">
+    <?php if (count($rep_membership_requests) === 0): ?>
+        <p>No pending membership requests.</p>
+    <?php else: ?>
+        <?php foreach ($rep_membership_requests as $request): ?>
+            <div class="card">
+                <h3><?= htmlspecialchars($request['student_name']); ?></h3>
+                <p>Email: <?= htmlspecialchars($request['student_email']); ?></p>
+                <p>Club: <?= htmlspecialchars($request['club_name']); ?></p>
+                <p>Requested: <?= htmlspecialchars($request['requested_at']); ?></p>
+
+                <button type="button"
+                        class="btn membership-action-button"
+                        data-request-id="<?= $request['request_id']; ?>"
+                        data-status="Accepted">
+                    Accept
+                </button>
+
+                <button type="button"
+                        class="btn btn-reject membership-action-button"
+                        data-request-id="<?= $request['request_id']; ?>"
+                        data-status="Declined">
+                    Decline
+                </button>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+
+
                 
                 <!-- ANNOUNCEMENTS (representative view): list of posted announcements +  post form -->
 
@@ -569,8 +948,8 @@ if ($current_role === 'Student') {
                             <tr>
                                 <td><?= htmlspecialchars($club['name']); ?></td>
                                 <td><?= htmlspecialchars($club['category']); ?></td>
-                                <!-- TODO 8: Enter the column name that holds the registration date. -->
-                                <td><?= htmlspecialchars($club['__________']); ?></td>
+                                <!-- Column name that holds the registration date. -->
+                                <td><?= htmlspecialchars($club['registration_date']); ?></td>
                                 <td>
                                     <button type="button" class="btn approve-button"
                                             data-club-id="<?= $club['club_id']; ?>">

@@ -2,7 +2,86 @@
 
 
 document.addEventListener("DOMContentLoaded", function () {
-    let navLinks = document.querySelectorAll("nav a");
+
+	
+    // ===== Account registration =====
+    const accountRegisterForm = document.getElementById("account-register-form");
+    const accountRegisterMessage = document.getElementById("account-register-message");
+
+    accountRegisterForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        fetch("index.php?action=register_account", {
+            method: "POST",
+            body: new FormData(accountRegisterForm)
+        })
+        .then(response => response.text())
+        .then(data => {
+            accountRegisterMessage.textContent = data;
+
+            if (data === "Account created successfully. You can now log in.") {
+                accountRegisterForm.reset();
+            }
+        });
+
+
+
+    // ===== Representative: accept or decline membership requests =====
+    document.addEventListener("click", function (event) {
+        const button = event.target.closest(".membership-action-button");
+
+        if (!button) return;
+
+        const formData = new FormData();
+        formData.append("request_id", button.dataset.requestId);
+        formData.append("status", button.dataset.status);
+
+        fetch("index.php?action=update_membership", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            alert(data);
+
+            if (data.includes("successfully")) {
+                location.reload();
+            }
+        })
+        .catch(() => {
+            alert("Unable to update membership request.");
+        });
+    });
+
+    });
+
+  
+    // ===== User login =====
+    const loginForm = document.getElementById("login-form");
+    const loginMessage = document.getElementById("login-message");
+
+    loginForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        fetch("index.php?action=login", {
+            method: "POST",
+            body: new FormData(loginForm)
+        })
+        .then(response => response.text())
+        .then(data => {
+            loginMessage.textContent = data.trim();
+
+            if (data.trim() === "Login successful.") {
+                window.location.href = "index.php";
+            }
+        })
+        .catch(error => {
+            loginMessage.textContent = "Login failed. Please try again.";
+        });
+    });
+
+
+    let navLinks = document.querySelectorAll("nav a.nav-link");
     let sections = document.querySelectorAll(".page-section");
 
     let searchButton = document.getElementById("search-button");
@@ -39,7 +118,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    showSection("student-section");
+    showSection(
+    document.querySelector(".page-section.active").id
+	);
 
     // ===== Student: search clubs =====
     // Sends a request to index.php and display the results.
@@ -65,11 +146,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ===== Student: request to join =====
     clubResults.addEventListener("click", function (event) {
-        if (event.target.classList.contains("join-button")) {
-            let clubId = event.target.getAttribute("data-club-id");
-            requestToJoin(clubId);
-        }
-    });
+    if (event.target.classList.contains("join-button")) {
+        let clubId = event.target.getAttribute("data-club-id");
+
+        alert("Club ID being submitted: " + clubId);
+
+        requestToJoin(clubId);
+    }
+});
 
     function requestToJoin(clubId) {
         let formData = new FormData();
@@ -92,8 +176,8 @@ document.addEventListener("DOMContentLoaded", function () {
     registerForm.addEventListener("submit", function (event) {
         event.preventDefault();
 
-        // TODO 5: Create a FormData object from the registration form.
-        let formData = __________;
+        // FormData object from the registration form.
+        let formData = new FormData(registerForm);
 
         fetch("index.php?action=register_club", {
             method: "POST",
@@ -103,11 +187,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 return response.text();
             })
             .then(function (data) {
-                registerMessage.textContent = data;
+    registerMessage.textContent = data;
 
-                // TODO 6: Clear the form after submitting.
-                registerForm.__________();
-            });
+    if (data.includes("successfully")) {
+        registerForm.reset();
+    }
+});
     });
 
     // ===== Club representative: create an event =====
@@ -115,8 +200,8 @@ document.addEventListener("DOMContentLoaded", function () {
         eventForm.addEventListener("submit", function (event) {
             event.preventDefault();
 
-            // TODO 7: Create a FormData object from the event form.
-            let formData = new FormData(__________);
+            // Creates a FormData object from the event form.
+            let formData = new FormData(eventForm);
 
             fetch("index.php?action=create_event", {
                 method: "POST",
@@ -143,8 +228,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 // TODO 8: Complete the condition that determines the new status.
                 let newStatus = button.classList.contains("approve-button")
-                    ? "__________"
-                    : "__________";
+                    ? "Approved"
+                    : "Rejected";
 
                 updateClubStatus(clubId, newStatus);
             }
@@ -166,8 +251,8 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(function (data) {
                 alert(data);
 
-                // TODO 9: Reload the page so the pending list refreshes.
-                location.__________();
+                // Reloads the page so the pending list refreshes.
+                location.reload();
             });
     }
 
@@ -244,11 +329,40 @@ document.querySelectorAll(".edit-profile-form").forEach(function (form) {
         }
     });
 
-    cancelButton.addEventListener("click", function () {
-        form.reset();
-        message.textContent = "";
-        editProfileSection.hidden = true;
+  
+        cancelButton.addEventListener("click", function () {
+            form.reset();
+            message.textContent = "";
+            editProfileSection.hidden = true;
+        });
     });
-});
+
+    // ===== Representative: Accept or Decline Membership Requests =====
+    document.addEventListener("click", function (event) {
+        const button = event.target.closest(".membership-action-button");
+
+        if (!button) return;
+
+        const formData = new FormData();
+        formData.append("request_id", button.dataset.requestId);
+        formData.append("status", button.dataset.status);
+
+        fetch("index.php?action=update_membership", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            alert(data);
+
+            if (data.includes("successfully")) {
+                location.reload();
+            }
+        })
+        .catch(() => {
+            alert("Unable to update membership request.");
+        });
+    });
 
 });
+
