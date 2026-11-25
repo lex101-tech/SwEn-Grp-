@@ -43,6 +43,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
             echo "<h3>" . htmlspecialchars($club['name']) . "</h3>";
             echo "<p>" . htmlspecialchars($club['category']) . "</p>";
             echo "<p>" . htmlspecialchars($club['description']) . "</p>";
+            echo "<button type='button' class='btn join-button' data-club-id='" . (int)$club['club_id'] . "'>Request to Join</button>";
             echo "</div>";
         }
     }
@@ -62,6 +63,68 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
     </div>
 <?php endforeach; ?>
 <?php
+    exit;
+}
+
+/* ---------------------------------------------------------------
+   MEMBERSHIP: Submit a membership request (Student)
+   Called by scripts.js: index.php?action=request_join (POST)
+   --------------------------------------------------------------- */
+if (isset($_GET['action']) && $_GET['action'] === 'request_join') {
+    // TEMP: fixed ID of the sample student (matches the sample data).
+    // Replace with the logged-in user's ID from $_SESSION once login exists.
+    $current_user_id = 3;
+
+    // Validation: a club must be selected and the ID must be a whole number.
+    $club_id = filter_var($_POST['club_id'] ?? '', FILTER_VALIDATE_INT);
+    if ($club_id === false) {
+        echo "Please select a valid club.";
+        exit;
+    }
+
+    // The club must exist, be Approved, and be accepting members.
+    $stmt = $conn->prepare("SELECT accepting_members FROM clubs
+                            WHERE club_id = :club_id AND status = 'Approved'");
+    $stmt->execute(['club_id' => $club_id]);
+    $club = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$club) {
+        echo "That club is not available.";
+        exit;
+    }
+    if (!$club['accepting_members']) {
+        echo "This club is not accepting new members.";
+        exit;
+    }
+
+    // Prevent duplicate requests: check for an existing request by this student.
+    $stmt = $conn->prepare("SELECT status FROM memberships
+                            WHERE student_id = :student_id AND club_id = :club_id");
+    $stmt->execute(['student_id' => $current_user_id, 'club_id' => $club_id]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existing) {
+        if ($existing['status'] === 'Pending') {
+            echo "You already have a pending request for this club.";
+        } elseif ($existing['status'] === 'Accepted') {
+            echo "You are already a member of this club.";
+        } else {
+            echo "Your previous request to this club was declined.";
+        }
+        exit;
+    }
+
+    // All checks passed: save the request with status Pending.
+    // request_id, status and requested_at are filled in by the database defaults.
+    try {
+        $stmt = $conn->prepare("INSERT INTO memberships (student_id, club_id)
+                                VALUES (:student_id, :club_id)");
+        $stmt->execute(['student_id' => $current_user_id, 'club_id' => $club_id]);
+        echo "Membership request submitted. The club will review it.";
+    } catch (PDOException $e) {
+        // Safety net: the UNIQUE (student_id, club_id) key rejected a duplicate.
+        echo "Your request could not be submitted. Please try again.";
+    }
     exit;
 }
 
