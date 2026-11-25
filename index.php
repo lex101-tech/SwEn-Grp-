@@ -1,5 +1,8 @@
-
 <?php
+// Initialize the session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 // Connect to the database (see database.php)
 require_once 'database.php';
 
@@ -71,9 +74,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
    Supports US-05. Corresponds to ClubFunc.postAnnouncement() in the SDS.
    --------------------------------------------------------------- */
 if (isset($_GET['action']) && $_GET['action'] === 'post_announcement') {
-    // TEMP: fixed ID of the sample representative (matches the sample data).
-    // Replace with the logged-in user's ID from $_SESSION once login exists.
-    $current_user_id = 2; 
+    
+    $current_user_id = $_SESSION['user_id'] ?? null;
+    $current_role    = $_SESSION['role'] ?? null;
+
+    if ($current_user_id === null || $current_role !== 'Representative') {
+        echo "You must be logged in as a club representative to post announcements.";
+        exit;
+    } 
 
     // Read the form values. "?? ''" gives an empty string if a field is missing.
     // trim() removes spaces at the start and end so "   " counts as blank.
@@ -123,8 +131,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'post_announcement') {
 if (($_GET['action'] ?? '') === 'update_profile'
     && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // Temporary representative ID until login is implemented
-    $current_user_id = 2;
+    // US-07: Verify logged-in representative
+       $current_user_id = $_SESSION['user_id'] ?? null;
+       $current_role = $_SESSION['role'] ?? null;
+
+       if (!$current_user_id || $current_role !== 'Representative') {
+       http_response_code(403);
+       echo "Unauthorized access.";
+       exit;
+}
 
     // Retrieve the submitted information
     $club_id = $_POST['club_id'] ?? '';
@@ -227,50 +242,55 @@ $pending_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
    ANNOUNCEMENTS: data for the page
    --------------------------------------------------------------- */
 
-// TEMP: fixed IDs of the sample users. Replace with $_SESSION values after login is built.
-$current_rep_id = 2;
-$current_student_id = 3;
+$current_user_id = $_SESSION['user_id'] ?? null;
+$current_role    = $_SESSION['role'] ?? null;
 
-// US-07: Retrieve the representative's approved club profiles
+// Start empty so the page still works for other roles or logged-out users
+$rep_clubs = [];
+$rep_announcements = [];
+$announcements = [];
+$club_profiles = [];
+if ($current_role === 'Representative') {
+       // US-07: Retrieve approved club profiles
     $stmt = $conn->prepare("SELECT club_id, name, description,
                            contact_email, contact_phone, meeting_info
                            FROM clubs
                            WHERE leader_id = :uid AND status = 'Approved'");
-    $stmt->execute(['uid' => $current_rep_id]);
+
+    $stmt->execute(['uid' => $current_user_id]);
     $club_profiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Clubs this representative leads and that are Approved (form dropdown)
+    $stmt = $conn->prepare("SELECT club_id, name FROM clubs
+                            WHERE leader_id = :uid AND status = 'Approved'");
+    $stmt->execute(['uid' => $current_user_id]);
+    $rep_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Clubs this representative leads and that are Approved.
-// Used to fill the club dropdown in the post form.
-$stmt = $conn->prepare("SELECT club_id, name FROM clubs
-                        WHERE leader_id = :uid AND status = 'Approved'");
-$stmt->execute(['uid' => $current_rep_id]);
-$rep_clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Announcements posted by this representative's clubs
+    $stmt = $conn->prepare("SELECT announcements.title, announcements.message,
+                                   announcements.posted_at, clubs.name AS club_name
+                            FROM announcements
+                            JOIN clubs ON announcements.club_id = clubs.club_id
+                            WHERE clubs.leader_id = :uid
+                            ORDER BY announcements.posted_at DESC");
+    $stmt->execute(['uid' => $current_user_id]);
+    $rep_announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
-// Announcements a student may see: only from Approved clubs where the
-// student's membership has been Accepted (SRS: visible to active members only).
-// JOINs link announcements -> clubs -> memberships. Newest first.
-$stmt = $conn->prepare("SELECT announcements.title, announcements.message,
-                               announcements.posted_at, clubs.name AS club_name
-                        FROM announcements
-                        JOIN clubs ON announcements.club_id = clubs.club_id
-                        WHERE clubs.leader_id = :uid
-                        ORDER BY announcements.posted_at DESC");
-$stmt->execute(['uid' => $current_rep_id]);
-$rep_announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+if ($current_role === 'Student') {
 
-// Announcements posted by the clubs this representative leads.
-// Lets the representative confirm what has been posted. Newest first.
-$stmt = $conn->prepare("SELECT announcements.title, announcements.message,
-                               announcements.posted_at, clubs.name AS club_name
-                        FROM announcements
-                        JOIN clubs ON announcements.club_id = clubs.club_id
-                        JOIN memberships ON memberships.club_id = clubs.club_id
-                        WHERE memberships.student_id = :uid
-                        AND memberships.status = 'Accepted'
-                        AND clubs.status = 'Approved'
-                        ORDER BY announcements.posted_at DESC");
-$stmt->execute(['uid' => $current_student_id]);
-$announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Announcements from Approved clubs where this student is an Accepted member
+    $stmt = $conn->prepare("SELECT announcements.title, announcements.message,
+                                   announcements.posted_at, clubs.name AS club_name
+                            FROM announcements
+                            JOIN clubs ON announcements.club_id = clubs.club_id
+                            JOIN memberships ON memberships.club_id = clubs.club_id
+                            WHERE memberships.student_id = :uid
+                            AND memberships.status = 'Accepted'
+                            AND clubs.status = 'Approved'
+                            ORDER BY announcements.posted_at DESC");
+    $stmt->execute(['uid' => $current_user_id]);
+    $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 
 <!DOCTYPE html>
@@ -344,19 +364,21 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <!-- ANNOUNCEMENTS (student view): only from clubs the student has joined -->
-                <h2>Club Announcements</h2>
-                <div class="cards">
-                    <?php if (count($announcements) === 0): ?>
-                        <p>No announcements</p>
-                    <?php endif; ?>
-                    <?php foreach ($announcements as $a): ?>
-                        <div class="card">
-                            <h3><?= htmlspecialchars($a['title']); ?></h3>
-                            <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
-                            <p><?= nl2br(htmlspecialchars($a['message'])); ?></p>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+                <?php if ($current_role === 'Student'): ?>
+                    <h2>Club Announcements</h2>
+                    <div class="cards">
+                        <?php if (count($announcements) === 0): ?>
+                            <p>No announcements</p>
+                        <?php endif; ?>
+                        <?php foreach ($announcements as $a): ?>
+                            <div class="card">
+                                <h3><?= htmlspecialchars($a['title']); ?></h3>
+                                <p class="small"><?= htmlspecialchars($a['club_name']); ?> · <?= htmlspecialchars($a['posted_at']); ?></p>
+                                <p><?= nl2br(htmlspecialchars($a['message'])); ?></p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
             </section>
 
@@ -410,6 +432,7 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
                 <!-- ANNOUNCEMENTS (representative view): list of posted announcements +  post form -->
 
+                <?php if ($current_role === 'Representative'): ?>
                 <!-- Announcements already posted by this representative's clubs -->
 
                 <!-- US-07: Edit Club Profile -->
@@ -512,6 +535,7 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </form>
 
                 <?php endif; ?>
+                <?php endif; ?> 
 
 
 
