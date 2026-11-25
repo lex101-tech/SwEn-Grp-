@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append("club_id", clubId);
 
         // TODO 4: Enter the action name that index.php uses for join requests.
-        fetch("index.php?action=__________", {
+        fetch("index.php?action=request_join", {
             method: "POST",
             body: formData
         })
