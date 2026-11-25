@@ -391,7 +391,7 @@ if ($current_role === 'Student') {
                 </form>
 
                 <?php endif; ?>
-                <?php endif; ?> // end of Representative-only announcements
+                <?php endif; ?> 
 
 
 
