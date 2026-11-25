@@ -17,18 +17,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
         $category = $_GET['category'];
     }
 
-    // TODO 1: Enter the name of the table that stores clubs.
-    // TODO 2: Enter the status a club must have before students can see it.
     $sql = "SELECT club_id, name, category, description
-            FROM __________
-            WHERE status = '__________'
+            FROM clubs
+            WHERE status = 'Approved'
             AND (name LIKE :keyword OR description LIKE :keyword_desc)
             AND category LIKE :category";
 
     $stmt = $conn->prepare($sql);
 
-    // TODO 3: Execute the query (the values below are already provided).
-    $stmt->__________([
+    $stmt->execute([
         'keyword' => '%' . $keyword . '%',
         'keyword_desc' => '%' . $keyword . '%',
         'category' => '%' . $category . '%'
@@ -36,10 +33,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
 
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // TODO 4: Complete the condition so the message shows when 0 clubs were found.
-    if (count($results) === __) {
+    // Shows a message if no clubs are found and exits the function without crashing
+    if (count($results) === 0) {
         echo "<p>No clubs found</p>";
     }
+    else {
+        foreach ($results as $club) {
+            echo "<div class='club-card'>";
+            echo "<h3>" . htmlspecialchars($club['name']) . "</h3>";
+            echo "<p>" . htmlspecialchars($club['category']) . "</p>";
+            echo "<p>" . htmlspecialchars($club['description']) . "</p>";
+            echo "</div>";
+        }
+    }
+    exit;
+    
 ?>
 <?php foreach ($results as $row): ?>
     <div class="card">

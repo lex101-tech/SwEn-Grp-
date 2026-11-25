@@ -25,8 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
         for (let i = 0; i < sections.length; i++) {
             sections[i].style.display = "none";
         }
-
-        // TODO 1: Show the chosen section. Replace the blank with "block".
+        
         document.getElementById(sectionId).style.display = "block";
     }
 
@@ -40,6 +39,7 @@ document.addEventListener("DOMContentLoaded", function () {
     showSection("student-section");
 
     // ===== Student: search clubs =====
+    // Sends a request to index.php and display the results.
     function searchClubs() {
         let url = "index.php?action=search&keyword=" +
             encodeURIComponent(keywordInput.value) +
@@ -50,28 +50,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 return response.text();
             })
             .then(function (data) {
-                // TODO 2: Put the text returned by PHP inside the clubResults element.
-                // Replace the blank with the property used in world.js (Lab 5).
-                //127.0.0.1/fst_club_hub/clubs/		http://localhost/phpmyadmin/index.php?route=/sql&db=fst_club_hub&table=clubs&pos=0
-                //@Azi come back to this
-
-   
-                clubResults.__________ = data;
-                //clubResults. = data;
+                clubResults.innerHTML = data;
             });
     }
 
-    //@Azi also do here 
-    //TODO 3: Run searchClubs when the Search button is clicked.
-    // Replace the blank with the event name.
-    // this might not be correct
-    searchButton.addEventListener("clubResults", searchClubs);
+    // Run searchClubs when the Search button is clicked.
+    searchButton.addEventListener("click", searchClubs);
 
     // Show all approved clubs when the page opens.
     searchClubs();
 
     // ===== Student: request to join =====
-    // The Join buttons are created by PHP after the page loads.
     clubResults.addEventListener("click", function (event) {
         if (event.target.classList.contains("join-button")) {
             let clubId = event.target.getAttribute("data-club-id");

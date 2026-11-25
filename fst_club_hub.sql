@@ -118,17 +118,6 @@ INSERT INTO announcements (club_id, title, message) VALUES
 (1, 'Welcome!', 'Welcome to the Computing Society. Our first meeting is next week.');
 
 -- =====================================================
--- TODO EXERCISES (commented out - run these in phpMyAdmin's SQL tab after importing)
--- =====================================================
--- TODO 1: Searches filter on clubs.status often (SRS: results within 3 seconds).
---         Fill in the column name, remove the "-- " and run it to add an index.
--- CREATE INDEX idx_clubs_status ON clubs(__________);
-
--- @Azi Saved statements to use for the search function
--- CREATE INDEX idx_clubs_status ON clubs(status);
--- SELECT name FROM clubs WHERE status = 'Approved';
-
--- @Azi also do here 
--- TODO 2: Write a SELECT that lists the names of all clubs with status 'Approved'.
---         Use it to check that the sample data imported correctly.
--- SELECT __________ FROM clubs WHERE status = '__________';
+-- Search filter on clubs that have been approved and lists them
+CREATE INDEX idx_clubs_status ON clubs(status);
+SELECT name FROM clubs WHERE status = 'Approved';
